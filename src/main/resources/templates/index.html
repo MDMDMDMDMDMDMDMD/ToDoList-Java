@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+<div class="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6">
+    <h1 class="text-2xl font-bold mb-4">To-Do List</h1>
+    <form id="task-form" class="mb-6">
+        <input type="text" id="name" placeholder="Task Name" class="border rounded p-2 w-full mb-2">
+        <input type="email" id="email" placeholder="Email" class="border rounded p-2 w-full mb-2">
+        <textarea id="description" placeholder="Task Description" class="border rounded p-2 w-full mb-2"></textarea>
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Add Task</button>
+    </form>
+    <ul id="task-list" class="space-y-4"></ul>
+</div>
+
+<script>
+    const form = document.getElementById('task-form');
+    const taskList = document.getElementById('task-list');
+    let editingTaskId = null;
+
+    // Handle form submission for both creating and editing tasks
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const description = document.getElementById('description').value;
+
+        if (editingTaskId) {
+            // If editing, send a PUT request to update the task
+            const res = await fetch(`/api/tasks/${editingTaskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, description }),
+            });
+
+            if (res.ok) {
+                form.reset();
+                editingTaskId = null;
+                loadTasks();
+            } else {
+                alert('Error updating task');
+            }
+        } else {
+            // If creating a new task, send a POST request
+            const res = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, description }),
+            });
+
+            if (res.ok) {
+                form.reset();
+                loadTasks();
+            }
+        }
+    });
+
+    // Load all tasks
+    async function loadTasks() {
+        const res = await fetch('/api/tasks');
+        const tasks = await res.json();
+        taskList.innerHTML = tasks.map(task => `
+            <li class="p-4 border rounded shadow" data-id="${task.id}">
+                <h3 class="text-lg font-bold">${task.name}</h3>
+                <p>${task.email}</p>
+                <p>${task.description}</p>
+                <button class="bg-yellow-500 text-white px-4 py-2 rounded mr-2" onclick="editTask(${task.id})">Edit</button>
+                <button class="bg-red-500 text-white px-4 py-2 rounded" onclick="deleteTask(${task.id})">Delete</button>
+            </li>
+        `).join('');
+    }
+
+    // Delete a task
+    async function deleteTask(id) {
+        const res = await fetch(`/api/tasks/${id}`, {
+            method: 'DELETE',
+        });
+
+        if (res.ok) {
+            loadTasks();
+        } else {
+            alert('Error deleting task');
+        }
+    }
+
+    // Edit a task
+    function editTask(id) {
+        // Find the task element with the matching ID
+        const taskElement = document.querySelector(`li[data-id="${id}"]`);
+
+        if (!taskElement) {
+            console.error(`Task with id ${id} not found`);
+            return;
+        }
+
+        // Extract task data from the element
+        const name = taskElement.querySelector('h3').innerText;
+        const email = taskElement.querySelector('p:nth-child(2)').innerText;
+        const description = taskElement.querySelector('p:nth-child(3)').innerText;
+
+        // Fill the form with current task data
+        document.getElementById('name').value = name;
+        document.getElementById('email').value = email;
+        document.getElementById('description').value = description;
+
+        // Set the task ID to the editingTaskId variable
+        editingTaskId = id;
+
+        // Optional: Add an alert or console log to verify the task ID
+        console.log(`Editing task ID: ${id}`);
+    }
+
+    loadTasks();
+</script>
+</body>
+</html>
